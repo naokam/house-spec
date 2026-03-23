@@ -8,8 +8,30 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    #access-gate{position:fixed;inset:0;z-index:99999;background:#1a1a2e;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:'Noto Sans JP',sans-serif}
+    #access-gate .gate-box{background:#16213e;border-radius:16px;padding:48px 40px;text-align:center;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+    #access-gate h2{color:#e2e8f0;font-size:1.3rem;margin:0 0 8px}
+    #access-gate p{color:#94a3b8;font-size:.85rem;margin:0 0 24px}
+    #access-gate input{width:100%;padding:12px 16px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:1rem;outline:none;box-sizing:border-box;margin-bottom:12px}
+    #access-gate input:focus{border-color:#6366f1}
+    #access-gate button{width:100%;padding:12px;border:none;border-radius:8px;background:#6366f1;color:#fff;font-size:1rem;cursor:pointer;font-weight:500}
+    #access-gate button:hover{background:#4f46e5}
+    #access-gate .error{color:#f87171;font-size:.8rem;margin-top:8px;display:none}
+  </style>
 </head>
 <body>
+  <!-- アクセスゲート -->
+  <div id="access-gate">
+    <div class="gate-box">
+      <h2>アクセス認証</h2>
+      <p>アクセスキーを入力してください</p>
+      <input type="password" id="gate-key" placeholder="アクセスキー" autocomplete="off">
+      <button id="gate-submit">入室</button>
+      <div class="error" id="gate-error">アクセスキーが正しくありません</div>
+    </div>
+  </div>
+
   <!-- サイドバー -->
   <nav id="sidebar" class="sidebar">
     <div class="sidebar-header">
@@ -62,6 +84,62 @@
     <div class="lb-caption" id="lb-caption"></div>
   </div>
 
+  <script>
+  (function(){
+    // アクセスキーのSHA-256ハッシュ (キー: "okamoto2026")
+    var HASH='d6e0a657e8afab0bd08c172fd8e1fd8a339c28489810cac2330d941149b8453c';
+    async function sha256(s){var e=new TextEncoder().encode(s);var h=await crypto.subtle.digest('SHA-256',e);return Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0')}).join('')}
+
+    var params=new URLSearchParams(window.location.search);
+    var urlKey=params.get('key');
+
+    function unlock(){
+      document.getElementById('access-gate').style.display='none';
+      document.body.style.overflow='';
+    }
+
+    function checkKey(key){
+      sha256(key).then(function(h){
+        if(h===HASH){
+          sessionStorage.setItem('housespec_auth','1');
+          unlock();
+        } else {
+          // 平文比較フォールバック (簡易)
+          if(key==='okamoto2026'){
+            sessionStorage.setItem('housespec_auth','1');
+            unlock();
+          } else {
+            document.getElementById('gate-error').style.display='block';
+          }
+        }
+      });
+    }
+
+    // URL ?key= パラメータで自動認証
+    if(urlKey){
+      checkKey(urlKey);
+    }
+    // セッション内で認証済み
+    else if(sessionStorage.getItem('housespec_auth')==='1'){
+      unlock();
+    }
+    // 未認証：ゲート表示、コンテンツ非表示
+    else {
+      document.body.style.overflow='hidden';
+    }
+
+    document.getElementById('gate-submit').addEventListener('click',function(){
+      var key=document.getElementById('gate-key').value.trim();
+      if(key) checkKey(key);
+    });
+    document.getElementById('gate-key').addEventListener('keydown',function(e){
+      if(e.key==='Enter'){
+        var key=this.value.trim();
+        if(key) checkKey(key);
+      }
+    });
+  })();
+  </script>
   <script src="js/data.js"></script>
   <script src="js/app.js"></script>
   <script src="js/dashboard.js"></script>
